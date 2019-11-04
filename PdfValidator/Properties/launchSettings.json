@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PdfValidator": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Dor\\FilesToTest\\PDF\\1בניין הבורסה תל-אביב- -.pdf\""
+    }
+  }
+}
