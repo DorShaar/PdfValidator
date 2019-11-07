@@ -2,7 +2,7 @@
 {
     internal class LineParser : ILineParser
     {
-        public ObjectData Parse(string line)
+        public ObjectData Parse(string line, ref long offset)
         {
             string[] lineParts = line.Split(' ');
             if (lineParts.Length < 3)
@@ -17,7 +17,7 @@
             if (!int.TryParse(lineParts[1], out int objectGeneration))
                 return null;
 
-            return new ObjectData(objectNumber, objectGeneration);
+            return new ObjectData(objectNumber, objectGeneration, 0);
         }
     }
 }

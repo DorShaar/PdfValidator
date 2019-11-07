@@ -16,21 +16,15 @@ namespace PdfValidator
         public async Task<List<ObjectData>> Parse(string filePath)
         {
             List<ObjectData> objects = new List<ObjectData>();
+            long offset = 0;
 
             using (FileStream stream = File.OpenRead(filePath))
             using (StreamReader reader = new StreamReader(stream))
             {
-                int i = 0;
                 while (!reader.EndOfStream)
                 {
                     string line = await reader.ReadLineAsync();
-                    i++;
-                    if(i == 62213)
-                    {
-                        int x = 3;
-                    }
-
-                    ObjectData pdfObject = mLineParser.Parse(line);
+                    ObjectData pdfObject = mLineParser.Parse(line, ref offset);
                     if (pdfObject != null)
                         objects.Add(pdfObject);
                 }

@@ -4,14 +4,14 @@ namespace PdfValidator
 {
     internal class LineParserSpans : ILineParser
     {
-        public ObjectData Parse(string line)
+        public ObjectData Parse(string line, ref long offset)
         {
             ReadOnlySpan<char> span = line.AsSpan();
 
-            return Parse(span);
+            return Parse(span, ref offset);
         }
 
-        private ObjectData Parse(ReadOnlySpan<char> span)
+        public static ObjectData Parse(ReadOnlySpan<char> span, ref long offset)
         {
             var scanned = -1;
             var position = 0;
@@ -29,10 +29,10 @@ namespace PdfValidator
             if (objectStr == null || !objectStr.Equals("obj"))
                 return null;
 
-            return new ObjectData(objectNumber, objectGeneration);
+            return new ObjectData(objectNumber, objectGeneration, offset);
         }
 
-        private string ParseChunk(ref ReadOnlySpan<char> span, ref int scanned, ref int position)
+        private static string ParseChunk(ref ReadOnlySpan<char> span, ref int scanned, ref int position)
         {
             scanned += position + 1;
 

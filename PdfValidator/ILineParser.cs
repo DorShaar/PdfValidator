@@ -2,6 +2,6 @@
 {
     internal interface ILineParser
     {
-        ObjectData Parse(string line);
+        ObjectData Parse(string line, ref long offset);
     }
 }
