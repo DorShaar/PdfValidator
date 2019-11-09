@@ -11,7 +11,6 @@
             ObjectNumber = objectNumber;
             ObjectGeneration = objectGeneration;
             ObjectOffset = offset;
-            System.Console.WriteLine(offset);
         }
     }
 }

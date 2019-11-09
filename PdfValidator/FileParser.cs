@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using PdfValidator.Infrastracture;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
 namespace PdfValidator
 {
-    internal class FileParser : IFileParser
+    internal class FileParser : IPdfValidator
     {
         private readonly ILineParser mLineParser;
 
@@ -13,10 +14,9 @@ namespace PdfValidator
             mLineParser = lineParser;
         }
 
-        public async Task<List<ObjectData>> Parse(string filePath)
+        public async Task<ValidationResult> Validate(string filePath)
         {
             List<ObjectData> objects = new List<ObjectData>();
-            long offset = 0;
 
             using (FileStream stream = File.OpenRead(filePath))
             using (StreamReader reader = new StreamReader(stream))
@@ -24,13 +24,14 @@ namespace PdfValidator
                 while (!reader.EndOfStream)
                 {
                     string line = await reader.ReadLineAsync();
-                    ObjectData pdfObject = mLineParser.Parse(line, ref offset);
+                    ObjectData pdfObject = mLineParser.ParseLine(line);
                     if (pdfObject != null)
                         objects.Add(pdfObject);
                 }
             }
 
-            return objects;
+            // TODO Get Xref table and validate.
+            return new ValidationResult(false, "bla bla");
         }
     }
 }

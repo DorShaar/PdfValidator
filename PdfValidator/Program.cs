@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PdfValidator.Infrastracture;
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -21,7 +22,7 @@ namespace PdfValidator
             }
 
 
-            IFileParser fileParser = new FileParser(new LineParser());
+            IPdfValidator fileParser = new FileParser(new LineParser());
 
             //using (TimeTracer.TimeTracer timeTracer = new TimeTracer.TimeTracer("String parsing"))
             //{
@@ -37,7 +38,7 @@ namespace PdfValidator
             fileParser = new FileParserSpansAndPipes();
             using (TimeTracer.TimeTracer timeTracer = new TimeTracer.TimeTracer("Spans and pipes parsing"))
             {
-                List<ObjectData> objects = fileParser.Parse(args[0]).Result;
+                ValidationResult validationResult = fileParser.Validate(args[0]).Result;
             }
         }
     }

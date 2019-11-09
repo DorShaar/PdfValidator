@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Dor\\MyProjects\\PdfValidator\\PdfValidator\\PdfValidator.csproj": {}
+  },
+  "projects": {
+    "C:\\Dor\\MyProjects\\PdfValidator\\PdfValidator\\PdfValidator.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Dor\\MyProjects\\PdfValidator\\PdfValidator\\PdfValidator.csproj",
+        "projectName": "PdfValidator",
+        "projectPath": "C:\\Dor\\MyProjects\\PdfValidator\\PdfValidator\\PdfValidator.csproj",
+        "packagesPath": "C:\\Users\\dor.shaar\\.nuget\\packages\\",
+        "outputPath": "C:\\Dor\\MyProjects\\PdfValidator\\PdfValidator\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\dor.shaar\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "netcoreapp2.2"
+        ],
+        "sources": {
+          "C:\\Users\\dor.shaar\\OneDrive - Votiro\\Dor\\Local Packages": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://votiro.pkgs.visualstudio.com/_packaging/ThirdParty/nuget/v3/index.json": {},
+          "https://votiro.pkgs.visualstudio.com/_packaging/Votiro/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "netcoreapp2.2": {
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netcoreapp2.2": {
+          "dependencies": {
+            "Microsoft.NETCore.App": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[2.2.0, )",
+              "autoReferenced": true
+            },
+            "System.IO.Pipelines": {
+              "target": "Package",
+              "version": "[4.6.0, )"
+            },
+            "TimeTracer": {
+              "target": "Package",
+              "version": "[1.0.0, )"
+            }
+          },
+          "imports": [
+            "net461"
+          ],
+          "assetTargetFallback": true,
+          "warn": true
+        }
+      }
+    }
+  }
+}

@@ -1,8 +1,10 @@
-﻿namespace PdfValidator
+﻿using PdfValidator.Infrastracture;
+
+namespace PdfValidator
 {
     internal class LineParser : ILineParser
     {
-        public ObjectData Parse(string line, ref long offset)
+        public ObjectData ParseLine(string line, long offset = 0)
         {
             string[] lineParts = line.Split(' ');
             if (lineParts.Length < 3)

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PdfValidator.Infrastracture;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
@@ -8,34 +9,48 @@ using System.Threading.Tasks;
 
 namespace PdfValidator
 {
-    internal class FileParserSpansAndPipes : IFileParser
+    internal class FileParserSpansAndPipes : IPdfValidator
     {
         private const int mLengthLimit = 16384;
+        private ProcessMode mProcessMode = ProcessMode.Regular;
 
-        public async Task<List<ObjectData>> Parse(string file)
+        public async Task<ValidationResult> Validate(string file)
         {
-            var result = new List<ObjectData>();
             using (FileStream stream = File.OpenRead(file))
             {
                 PipeReader reader = PipeReader.Create(stream);
                 long offset = 0;
-                while (true)
+                var pdfObjects = new List<ObjectData>();
+                var xrefObjects = new List<ObjectData>();
+
+                bool isReadComplete = false;
+                while (!isReadComplete)
                 {
                     ReadResult read = await reader.ReadAsync();
                     ReadOnlySequence<byte> buffer = read.Buffer;
                     while (TryReadLine(ref buffer, out ReadOnlySequence<byte> sequence))
                     {
-                        ObjectData objectData = ProcessSequence(sequence, ref offset);
-                        if (objectData != null)
-                            result.Add(objectData);
+                        ParsedLine parsedLine = ProcessSequence(sequence, ref offset);
+                        mProcessMode = parsedLine.ProcessMode;
+
+                        if(mProcessMode == ProcessMode.Regular)
+                        {
+                            if (parsedLine.ObjectData != null)
+                                pdfObjects.Add(parsedLine.ObjectData);
+                        }
+
+                        if (mProcessMode == ProcessMode.InsideXref)
+                        {
+                            if (parsedLine.ObjectData != null)
+                                xrefObjects.Add(parsedLine.ObjectData);
+                        }
                     }
 
                     reader.AdvanceTo(buffer.Start, buffer.End);
-                    if (read.IsCompleted)
-                        break;
+                    isReadComplete = read.IsCompleted;
                 }
 
-                return result;
+                return ValidatePdfObjectsToXrefObjects(pdfObjects, xrefObjects);
             }
         }
 
@@ -83,7 +98,7 @@ namespace PdfValidator
                 return CRPosition.Value;
         }
 
-        private ObjectData ProcessSequence(ReadOnlySequence<byte> sequence, ref long offset)
+        private ParsedLine ProcessSequence(ReadOnlySequence<byte> sequence, ref long offset)
         {
             if (sequence.IsSingleSegment)
                 return Parse(sequence.First.Span, ref offset);
@@ -98,18 +113,23 @@ namespace PdfValidator
             return Parse(span, ref offset);
         }
 
-        private ObjectData Parse(ReadOnlySpan<byte> bytes, ref long offset)
+        private ParsedLine Parse(ReadOnlySpan<byte> bytes, ref long offset)
         {
             Span<char> chars = stackalloc char[bytes.Length];
             Encoding.UTF8.GetChars(bytes, chars);
 
-            ObjectData objectData = LineParserSpans.Parse(chars, ref offset);
+            ParsedLine parsedLine = LineParserSpans.ParseLine(chars, offset);
 
             // Add 1 for CR or LF byte.
             offset++;
 
             offset += bytes.Length;
-            return objectData;
+            return parsedLine;
+        }
+
+        ValidationResult ValidatePdfObjectsToXrefObjects(List<ObjectData> objectData, List<ObjectData> xrefData)
+        {
+            return new ValidationResult(false, "bla bla");
         }
     }
 }
