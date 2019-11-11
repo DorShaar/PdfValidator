@@ -1,4 +1,6 @@
 ﻿using PdfValidator.Infrastracture;
+using PdfValidator.ParsedLine;
+using PdfValidator.ParsedLines;
 using System;
 
 namespace PdfValidator
@@ -7,18 +9,30 @@ namespace PdfValidator
     {
         public ObjectData ParseLine(string line, long offset = 0)
         {
-            ReadOnlySpan<char> span = line.AsSpan();
-
-            return ParseLine(span, offset).ObjectData;
+            return (ParseLine(line.AsSpan(), offset, ParseMode.Regular) as ObjectDataParsedLine)?.ObjectData;
         }
 
-        public static ParsedLine ParseLine(ReadOnlySpan<char> span, long offset)
+        public static IParsedLine ParseLine(ReadOnlySpan<char> span, long offset, ParseMode processMode)
+        {
+            char separator = ' ';
+
+            if (processMode == ParseMode.Regular)
+                return ParseLineRegularMode(span, offset, separator);
+
+            if (processMode == ParseMode.ExpectingXRefTableHeader)
+                return ParseLineXrefTableHeaderMode(span, offset, separator);
+
+            if (processMode == ParseMode.InsideXref)
+                return ParseLineXrefMode(span, offset, separator);
+
+            return null;
+        }
+
+        private static IParsedLine ParseLineRegularMode(ReadOnlySpan<char> span, long offset, char separator)
         {
             int scanned = -1;
             int position = 0;
-            char separator = ' ';
 
-            // In case of DataObject.
             ReadOnlySpan<char> objectNumberSpan = ParseChunk(ref span, ref scanned, ref position, separator);
             if (int.TryParse(objectNumberSpan, out int objectNumber))
             {
@@ -27,20 +41,61 @@ namespace PdfValidator
                     return null;
 
                 ReadOnlySpan<char> objectSpan = ParseChunk(ref span, ref scanned, ref position, separator);
-                if (objectSpan == null || !objectSpan.Equals("obj"))
+                if (objectSpan == null || !objectSpan.ToString().Contains("obj"))
                     return null;
 
-                return new ParsedLine(
+                return new ObjectDataParsedLine(
                     offset,
-                    ProcessMode.Regular,
+                    ParseMode.Regular,
                     new ObjectData(objectNumber, objectGeneration, offset));
             }
 
+            if (span.ToString().Contains("xref"))
+                return new ChangeModeParsedLine(offset, ParseMode.ExpectingXRefTableHeader);
 
-            if (objectNumberSpan.ToString().Equals("xref"))
-                return new ParsedLine(offset, ProcessMode.InsideXref);
+            return null;
+        }
 
-            return new ParsedLine(offset, ProcessMode.Regular);
+        private static IParsedLine ParseLineXrefTableHeaderMode(ReadOnlySpan<char> span, long offset, char separator)
+        {
+            int scanned = -1;
+            int position = 0;
+
+            ReadOnlySpan<char> firstObjectNumberSpan = ParseChunk(ref span, ref scanned, ref position, separator);
+            if (int.TryParse(firstObjectNumberSpan, out int firstObjectNumber))
+            {
+                ReadOnlySpan<char> xrefTebleSizeSpan = ParseChunk(ref span, ref scanned, ref position, separator);
+                if (!int.TryParse(xrefTebleSizeSpan, out int xrefTebleSize))
+                    return null;
+
+                return new XRefTableHeaderParsedLine(firstObjectNumber, xrefTebleSize, offset);
+            }
+
+            return null;
+        }
+
+        private static IParsedLine ParseLineXrefMode(ReadOnlySpan<char> span, long offset, char separator)
+        {
+            int scanned = -1;
+            int position = 0;
+
+            ReadOnlySpan<char> objectOffsetSpan = ParseChunk(ref span, ref scanned, ref position, separator);
+            if (long.TryParse(objectOffsetSpan, out long objectOffset))
+            {
+                ReadOnlySpan<char> objectGenerationSpan = ParseChunk(ref span, ref scanned, ref position, separator);
+                if (!int.TryParse(objectGenerationSpan, out int objectGeneration))
+                    return null;
+
+                return new ObjectDataParsedLine(
+                    offset,
+                    ParseMode.InsideXref,
+                    new ObjectData(0, objectGeneration, objectOffset));
+            }
+
+            if (objectOffsetSpan.ToString().Equals("startxref"))
+                return new ChangeModeParsedLine(offset, ParseMode.Regular);
+
+            return null;
         }
 
         private static ReadOnlySpan<char> ParseChunk(

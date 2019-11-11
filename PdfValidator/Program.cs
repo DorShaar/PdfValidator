@@ -1,6 +1,5 @@
 ﻿using PdfValidator.Infrastracture;
 using System;
-using System.Collections.Generic;
 using System.IO;
 
 namespace PdfValidator
@@ -21,7 +20,7 @@ namespace PdfValidator
                 return;
             }
 
-
+            string filePath = args[0];
             IPdfValidator fileParser = new FileParser(new LineParser());
 
             //using (TimeTracer.TimeTracer timeTracer = new TimeTracer.TimeTracer("String parsing"))
@@ -38,7 +37,11 @@ namespace PdfValidator
             fileParser = new FileParserSpansAndPipes();
             using (TimeTracer.TimeTracer timeTracer = new TimeTracer.TimeTracer("Spans and pipes parsing"))
             {
-                ValidationResult validationResult = fileParser.Validate(args[0]).Result;
+                ValidationResult validationResult = fileParser.Validate(filePath).Result;
+                if(validationResult.Result == true)
+                    Console.WriteLine($"{filePath} validation success!");
+                else
+                    Console.WriteLine($"{filePath} validation failed with the next error: {validationResult.ErrorsText}");
             }
         }
     }

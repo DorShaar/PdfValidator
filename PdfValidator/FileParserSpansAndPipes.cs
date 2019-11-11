@@ -1,4 +1,5 @@
 ﻿using PdfValidator.Infrastracture;
+using PdfValidator.ParsedLine;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -12,45 +13,69 @@ namespace PdfValidator
     internal class FileParserSpansAndPipes : IPdfValidator
     {
         private const int mLengthLimit = 16384;
-        private ProcessMode mProcessMode = ProcessMode.Regular;
 
         public async Task<ValidationResult> Validate(string file)
         {
             using (FileStream stream = File.OpenRead(file))
             {
                 PipeReader reader = PipeReader.Create(stream);
-                long offset = 0;
-                var pdfObjects = new List<ObjectData>();
-                var xrefObjects = new List<ObjectData>();
+                ParsingData parsingData = new ParsingData();
 
                 bool isReadComplete = false;
                 while (!isReadComplete)
                 {
                     ReadResult read = await reader.ReadAsync();
                     ReadOnlySequence<byte> buffer = read.Buffer;
-                    while (TryReadLine(ref buffer, out ReadOnlySequence<byte> sequence))
-                    {
-                        ParsedLine parsedLine = ProcessSequence(sequence, ref offset);
-                        mProcessMode = parsedLine.ProcessMode;
 
-                        if(mProcessMode == ProcessMode.Regular)
-                        {
-                            if (parsedLine.ObjectData != null)
-                                pdfObjects.Add(parsedLine.ObjectData);
-                        }
-
-                        if (mProcessMode == ProcessMode.InsideXref)
-                        {
-                            if (parsedLine.ObjectData != null)
-                                xrefObjects.Add(parsedLine.ObjectData);
-                        }
-                    }
+                    ReadFromBuffer(ref buffer, parsingData);
 
                     reader.AdvanceTo(buffer.Start, buffer.End);
                     isReadComplete = read.IsCompleted;
                 }
 
-                return ValidatePdfObjectsToXrefObjects(pdfObjects, xrefObjects);
+                return ValidatePdfObjectsToXrefObjects(parsingData.PdfObjects, parsingData.XRefObjects);
+            }
+        }
+
+        private void ReadFromBuffer(ref ReadOnlySequence<byte> buffer, ParsingData parsingData)
+        {
+            while (TryReadLine(ref buffer, out ReadOnlySequence<byte> sequence))
+            {
+                IParsedLine parsedLine = ProcessSequence(
+                    sequence, ref parsingData.CurrentOffset, parsingData.ParseMode);
+
+                if (parsedLine == null)
+                    continue;
+
+                if (parsedLine.ParseMode == ParseMode.Regular &&
+                    parsedLine is ObjectDataParsedLine objectDataParsedLine)
+                {
+                    parsingData.PdfObjects.Add(objectDataParsedLine.ObjectData);
+                }
+
+                if (parsedLine.ParseMode == ParseMode.InsideXref &&
+                    parsedLine is XRefTableHeaderParsedLine xRefTableHeaderParsedLine)
+                {
+                    parsingData.CurrentXRefTableFirstObjectNumber =
+                        xRefTableHeaderParsedLine.FirstObjectNumber;
+                    parsingData.CurrentXRefTableSize =
+                        xRefTableHeaderParsedLine.TableSize;
+                    parsingData.CurrentXRefTableObjectNumberIndex = 0;
+                }
+
+                if (parsedLine.ParseMode == ParseMode.InsideXref &&
+                    parsedLine is ObjectDataParsedLine xrefObjectDataParsedLine)
+                {
+                    parsingData.XRefObjects.Add(
+                        new ObjectData(
+                            parsingData.CurrentXRefTableObjectNumberIndex + parsingData.CurrentXRefTableFirstObjectNumber,
+                            xrefObjectDataParsedLine.ObjectData.ObjectGeneration,
+                            xrefObjectDataParsedLine.ObjectData.ObjectOffset));
+
+                    parsingData.CurrentXRefTableObjectNumberIndex++;
+                }
+
+                parsingData.ParseMode = parsedLine.ParseMode;
             }
         }
 
@@ -98,10 +123,10 @@ namespace PdfValidator
                 return CRPosition.Value;
         }
 
-        private ParsedLine ProcessSequence(ReadOnlySequence<byte> sequence, ref long offset)
+        private IParsedLine ProcessSequence(ReadOnlySequence<byte> sequence, ref long offset, ParseMode parseMode)
         {
             if (sequence.IsSingleSegment)
-                return Parse(sequence.First.Span, ref offset);
+                return Parse(sequence.First.Span, ref offset, parseMode);
 
             var length = (int)sequence.Length;
             if (length > mLengthLimit)
@@ -110,15 +135,15 @@ namespace PdfValidator
             Span<byte> span = stackalloc byte[(int)sequence.Length];
             sequence.CopyTo(span);
 
-            return Parse(span, ref offset);
+            return Parse(span, ref offset, parseMode);
         }
 
-        private ParsedLine Parse(ReadOnlySpan<byte> bytes, ref long offset)
+        private IParsedLine Parse(ReadOnlySpan<byte> bytes, ref long offset, ParseMode parseMode)
         {
             Span<char> chars = stackalloc char[bytes.Length];
             Encoding.UTF8.GetChars(bytes, chars);
 
-            ParsedLine parsedLine = LineParserSpans.ParseLine(chars, offset);
+            IParsedLine parsedLine = LineParserSpans.ParseLine(chars, offset, parseMode);
 
             // Add 1 for CR or LF byte.
             offset++;
@@ -127,9 +152,38 @@ namespace PdfValidator
             return parsedLine;
         }
 
-        ValidationResult ValidatePdfObjectsToXrefObjects(List<ObjectData> objectData, List<ObjectData> xrefData)
+        ValidationResult ValidatePdfObjectsToXrefObjects(List<ObjectData> pdfObjects, List<ObjectData> xrefObjects)
         {
-            return new ValidationResult(false, "bla bla");
+            bool validatonResult = true;
+            StringBuilder errorText = new StringBuilder();
+            foreach(ObjectData pdfObject in pdfObjects)
+            {
+                ObjectData xrefObject = xrefObjects.Find(obj =>
+                    obj.ObjectNumber == pdfObject.ObjectNumber
+                    &&
+                    obj.ObjectOffset == pdfObject.ObjectOffset);
+
+                if (xrefObject != null)
+                    xrefObjects.Remove(xrefObject);
+                else
+                {
+                    errorText.AppendLine($"Object number {pdfObject.ObjectNumber} does not exist in xref table");
+                    validatonResult = false;
+                }
+            }
+
+            if(xrefObjects.Count > 1)
+            {
+                errorText.Append($"The next object numbers found on xref table but no object found in pdf:");
+                foreach (ObjectData pdfObject in xrefObjects)
+                {
+                    errorText.Append($" {pdfObject.ObjectNumber}");
+                }
+
+                validatonResult = false;
+            }
+
+            return new ValidationResult(validatonResult, errorText.ToString());
         }
     }
 }

@@ -1,8 +1,8 @@
 ﻿namespace PdfValidator.Infrastracture
 {
-    internal interface ILineInfo
+    internal interface IParsedLine
     {
         long LineOffset { get; }
-        ProcessMode ProcessMode { get; }
+        ParseMode ParseMode { get; }
     }
 }

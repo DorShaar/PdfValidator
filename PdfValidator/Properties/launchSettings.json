@@ -2,7 +2,7 @@
   "profiles": {
     "PdfValidator": {
       "commandName": "Project",
-      "commandLineArgs": "\"C:\\Users\\dor.shaar\\Desktop\\102.pdf\""
+      "commandLineArgs": "\"C:\\Users\\dor.shaar\\Downloads\\1016-blocked_file.pdf\""
     }
   }
 }
